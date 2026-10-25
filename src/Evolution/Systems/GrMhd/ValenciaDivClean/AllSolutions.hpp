@@ -23,6 +23,7 @@
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/SmoothFlow.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/GrMhd/Solutions.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/FishboneMoncriefDisk.hpp"
+#include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/KerrAtmosphere.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/RotatingStar.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/RelativisticEuler/TovStar.hpp"
 
@@ -36,6 +37,7 @@ using initial_data_list = tmpl::list<
     AnalyticData::RiemannProblem, AnalyticData::SlabJet, Solutions::AlfvenWave,
     grmhd::Solutions::BondiMichel, Solutions::KomissarovShock,
     Solutions::SmoothFlow, RelativisticEuler::Solutions::FishboneMoncriefDisk,
+    RelativisticEuler::Solutions::KerrAtmosphere,
     RelativisticEuler::Solutions::RotatingStar,
     RelativisticEuler::Solutions::TovStar>;
 }  // namespace grmhd::ValenciaDivClean::InitialData

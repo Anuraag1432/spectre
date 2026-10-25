@@ -47,6 +47,30 @@ SmoothFlow::variables(
   return {make_with_value<Scalar<DataType>>(x, 0.0)};
 }
 
+template <typename DataType>
+tuples::TaggedTuple<hydro::Tags::RestMassDensity<DataType>>
+SmoothFlow::variables(
+    const tnsr::I<DataType, 3>& x, double /*t*/,
+    tmpl::list<hydro::Tags::RestMassDensity<DataType>> /*meta*/) const {
+  // Hardcoded to your desired background density
+  return {make_with_value<Scalar<DataType>>(x, 1.0e-8)};
+}
+
+template <typename DataType>
+tuples::TaggedTuple<hydro::Tags::SpecificInternalEnergy<DataType>>
+SmoothFlow::variables(
+    const tnsr::I<DataType, 3>& x, double /*t*/,
+    tmpl::list<hydro::Tags::SpecificInternalEnergy<DataType>> /*meta*/) const {
+  // EoS: epsilon = P / ((Gamma - 1) * rho)
+  // Using your yaml values: P = 1.0, Gamma = 1.3333333333333333, rho = 1e-8
+  const double pressure = 2.0e-13;
+  const double gamma = 1.3333333333333333;
+  const double rho = 1.0e-8;
+  const double epsilon = pressure / ((gamma - 1.0) * rho);
+  
+  return {make_with_value<Scalar<DataType>>(x, epsilon)};
+}
+
 PUP::able::PUP_ID SmoothFlow::my_PUP_ID = 0;
 
 bool operator==(const SmoothFlow& lhs, const SmoothFlow& rhs) {
@@ -68,8 +92,12 @@ bool operator!=(const SmoothFlow& lhs, const SmoothFlow& rhs) {
                             tmpl::list<TAG(data) < DTYPE(data)> > /*meta*/) \
           const;
 
+// GENERATE_INSTANTIATIONS(INSTANTIATE_SCALARS, (double, DataVector),
+//                         (hydro::Tags::DivergenceCleaningField))
 GENERATE_INSTANTIATIONS(INSTANTIATE_SCALARS, (double, DataVector),
-                        (hydro::Tags::DivergenceCleaningField))
+                        (hydro::Tags::DivergenceCleaningField, 
+                        hydro::Tags::RestMassDensity, 
+                        hydro::Tags::SpecificInternalEnergy))
 
 #define INSTANTIATE_VECTORS(_, data)                                           \
   template tuples::TaggedTuple<TAG(data) < DTYPE(data), 3> >                   \
@@ -82,6 +110,6 @@ GENERATE_INSTANTIATIONS(INSTANTIATE_VECTORS, (double, DataVector),
 
 #undef DTYPE
 #undef TAG
-#undef INSTANTIATE_SCALARS
+#undef INSTANTIATE_SCALARS™
 #undef INSTANTIATE_VECTORS
 }  // namespace grmhd::Solutions

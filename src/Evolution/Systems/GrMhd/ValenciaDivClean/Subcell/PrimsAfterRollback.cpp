@@ -50,7 +50,7 @@ void PrimsAfterRollback<OrderedListOfRecoverySchemes>::apply(
         get(dg_pressure), dg_mesh, subcell_mesh.extents());
 
     grmhd::ValenciaDivClean::
-        PrimitiveFromConservative<OrderedListOfRecoverySchemes, true>::apply(
+        PrimitiveFromConservative<OrderedListOfRecoverySchemes, true>::template apply<true>(
             make_not_null(
                 &get<hydro::Tags::RestMassDensity<DataVector>>(*prim_vars)),
             make_not_null(

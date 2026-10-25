@@ -10,6 +10,8 @@
 #include <cstddef>
 #include <iterator>
 #include <utility>
+#include <cmath>
+// #include <iostream>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Index.hpp"
@@ -93,7 +95,9 @@ void compute_conservatives_for_reconstruction(
           *vars_on_face);
   raise_or_lower_index(make_not_null(&spatial_velocity_one_form),
                        spatial_velocity, spatial_metric);
-  const auto& rest_mass_density =
+//   const auto& rest_mass_density =
+//       get<hydro::Tags::RestMassDensity<DataVector>>(*vars_on_face);
+  auto& rest_mass_density =
       get<hydro::Tags::RestMassDensity<DataVector>>(*vars_on_face);
   const auto& electron_fraction =
       get<hydro::Tags::ElectronFraction<DataVector>>(*vars_on_face);
@@ -102,7 +106,14 @@ void compute_conservatives_for_reconstruction(
       get<hydro::Tags::SpecificInternalEnergy<DataVector>>(*vars_on_face);
   const auto& temperature =
       get<hydro::Tags::Temperature<DataVector>>(*vars_on_face);
-
+//  for (double& v : get(rest_mass_density)) {
+//    if (!std::isfinite(v) || v < 0.0) {
+//      v = std::abs(v);
+//    }
+//    if (std::abs(v) < 1.0e-8) {
+//      v = 1.0e-8;
+//    }
+//  }
   // EoS calls based on reconstructed primitives
   if constexpr (ThermodynamicDim == 1) {
     specific_internal_energy =
@@ -280,6 +291,25 @@ void reconstruct_prims_work(
           gsl::make_span(get<tag>(neighbor_data.at(id))[0].data(),
                          number_of_variables * neighbor_num_pts);
     }
+    // if constexpr (std::is_same_v<tag, hydro::Tags::RestMassDensity<DataVector>>) {
+    //     for (const auto& direction : Direction<3>::all_directions()) {
+    //         if (ghost_cell_vars.contains(direction)) {
+    //             auto ghost_span = ghost_cell_vars.at(direction);
+    //             // Cast away const to apply the floor in-place
+    //             double* mutable_ghost_data = const_cast<double*>(ghost_span.data());
+                
+    //             // Simple linear iteration (High Performance)
+    //             for (size_t g_idx = 0; g_idx < ghost_span.size(); ++g_idx) {
+    //                 if (mutable_ghost_data[g_idx] < 0.0) {
+    //                     // Apply the floor
+    //                     // Ensure 1.0e-8 matches or is slightly below your 
+    //                     // input file's "AtmoDensity"
+    //                     mutable_ghost_data[g_idx] = 1.0e-8; 
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
 
     reconstruct(make_not_null(&upper_face_vars),
                 make_not_null(&lower_face_vars), volume_vars, ghost_cell_vars,

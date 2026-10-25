@@ -51,7 +51,7 @@ struct MonotonisedCentralReconstructor {
 /*!
  * \ingroup FiniteDifferenceGroup
  * \brief Performs monotonised central-difference reconstruction on the `vars`
- * in each direction.
+ * in each direction
  *
  * On a 1d mesh with spacing \f$\Delta x\f$ we denote the solution at the
  * \f$j\f$th point by \f$u_j\f$. The monotonised central-difference

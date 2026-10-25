@@ -21,6 +21,7 @@
 #include "DataStructures/Variables.hpp"
 #include "Domain/Structure/Direction.hpp"
 #include "Evolution/DgSubcell/SliceTensor.hpp"
+#include "Evolution/Systems/GrMhd/ValenciaDivClean/ComputeFluxesFromPrimitives.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/ConservativeFromPrimitive.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/FiniteDifference/Reconstructor.hpp"
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Fluxes.hpp"
@@ -135,21 +136,37 @@ std::optional<std::string> HydroFreeOutflow::dg_ghost(
   get(interior_sqrt_det_spatial_metric) =
       1.0 / sqrt(get(interior_sqrt_det_spatial_metric));
 
-  // copy-paste interior spatial velocity to exterior spatial velocity, but
-  // kill ingoing normal component to zero
+  // Compute normal coordinate transport velocity pointing OUT of the domain:
+  // v_n^transport = n_i * (alpha * v^i - beta^i) = alpha * (n_i v^i) - (n_i beta^i)
   dot_product(make_not_null(&normal_dot_interior_spatial_velocity),
               outward_directed_normal_covector, interior_spatial_velocity);
+
+  DataVector normal_dot_shift(number_of_grid_points, 0.0);
+  for (size_t d = 0; d < 3; ++d) {
+    normal_dot_shift +=
+        outward_directed_normal_covector.get(d) * (*shift).get(d);
+  }
+  const auto& alpha = get(*lapse);
+
   for (size_t i = 0; i < number_of_grid_points; ++i) {
-    if (get(normal_dot_interior_spatial_velocity)[i] >= 0.0) {
+    const double normal_transport_velocity =
+        alpha[i] * get(normal_dot_interior_spatial_velocity)[i] -
+        normal_dot_shift[i];
+
+    if (normal_transport_velocity >= 0.0) {
+      // Fluid is flowing OUT of the computational domain: copy freely
       for (size_t spatial_index = 0; spatial_index < 3; ++spatial_index) {
         spatial_velocity->get(spatial_index)[i] =
             interior_spatial_velocity.get(spatial_index)[i];
       }
     } else {
+      // Fluid is attempting to enter the computational domain from outside:
+      // Remove the ingoing normal transport velocity component so that v_n^transport = 0
+      const double v_norm_correction = normal_transport_velocity / alpha[i];
       for (size_t spatial_index = 0; spatial_index < 3; ++spatial_index) {
         spatial_velocity->get(spatial_index)[i] =
             interior_spatial_velocity.get(spatial_index)[i] -
-            get(normal_dot_interior_spatial_velocity)[i] *
+            v_norm_correction *
                 outward_directed_normal_vector.get(spatial_index)[i];
       }
     }
@@ -222,18 +239,22 @@ void HydroFreeOutflow::fd_ghost(
 
     // fd_gridless_tags
     const fd::Reconstructor& reconstructor) {
-  Variables<tmpl::push_back<typename System::variables_tag::tags_list,
-                            SpatialVelocity, LorentzFactor, Pressure,
-                            SpecificInternalEnergy, SqrtDetSpatialMetric,
-                            SpatialMetric, InvSpatialMetric, Lapse, Shift>>
+  Variables<tmpl::push_back<
+      tmpl::append<typename System::variables_tag::tags_list,
+                   typename System::primitive_variables_tag::tags_list>,
+      SqrtDetSpatialMetric, SpatialMetric, InvSpatialMetric, Lapse, Shift>>
       temp_vars{get(*rest_mass_density).size()};
-  fd_ghost_impl(rest_mass_density, electron_fraction, temperature,
+
+  fd_ghost_impl(make_not_null(&get<RestMassDensity>(temp_vars)),
+                make_not_null(&get<ElectronFraction>(temp_vars)),
+                make_not_null(&get<Temperature>(temp_vars)),
                 make_not_null(&get<Pressure>(temp_vars)),
                 make_not_null(&get<SpecificInternalEnergy>(temp_vars)),
                 lorentz_factor_times_spatial_velocity,
                 make_not_null(&get<SpatialVelocity>(temp_vars)),
-                make_not_null(&get<LorentzFactor>(temp_vars)), magnetic_field,
-                divergence_cleaning_field,
+                make_not_null(&get<LorentzFactor>(temp_vars)),
+                make_not_null(&get<MagneticField>(temp_vars)),
+                make_not_null(&get<DivergenceCleaningField>(temp_vars)),
                 make_not_null(&get<SpatialMetric>(temp_vars)),
                 make_not_null(&get<InvSpatialMetric>(temp_vars)),
                 make_not_null(&get<SqrtDetSpatialMetric>(temp_vars)),
@@ -255,48 +276,19 @@ void HydroFreeOutflow::fd_ghost(
                 reconstructor.ghost_zone_size(),
 
                 cell_centered_ghost_fluxes->has_value());
+
   if (cell_centered_ghost_fluxes->has_value()) {
-    ConservativeFromPrimitive::apply(
-        make_not_null(&get<Tags::TildeD>(temp_vars)),
-        make_not_null(&get<Tags::TildeYe>(temp_vars)),
-        make_not_null(&get<Tags::TildeTau>(temp_vars)),
-        make_not_null(&get<Tags::TildeS<>>(temp_vars)),
-        make_not_null(&get<Tags::TildeB<>>(temp_vars)),
-        make_not_null(&get<Tags::TildePhi>(temp_vars)),
-
-        // Note: Only the spatial velocity changes.
-        *rest_mass_density, *electron_fraction,
-        get<SpecificInternalEnergy>(temp_vars), get<Pressure>(temp_vars),
-        get<SpatialVelocity>(temp_vars), get<LorentzFactor>(temp_vars),
-        *magnetic_field,
-
-        get<SqrtDetSpatialMetric>(temp_vars), get<SpatialMetric>(temp_vars),
-        *divergence_cleaning_field);
-
-    ComputeFluxes::apply(
-        make_not_null(
-            &get<Flux<Tags::TildeD>>(cell_centered_ghost_fluxes->value())),
-        make_not_null(
-            &get<Flux<Tags::TildeYe>>(cell_centered_ghost_fluxes->value())),
-        make_not_null(
-            &get<Flux<Tags::TildeTau>>(cell_centered_ghost_fluxes->value())),
-        make_not_null(
-            &get<Flux<Tags::TildeS<>>>(cell_centered_ghost_fluxes->value())),
-        make_not_null(
-            &get<Flux<Tags::TildeB<>>>(cell_centered_ghost_fluxes->value())),
-        make_not_null(
-            &get<Flux<Tags::TildePhi>>(cell_centered_ghost_fluxes->value())),
-
-        get<Tags::TildeD>(temp_vars), get<Tags::TildeYe>(temp_vars),
-        get<Tags::TildeTau>(temp_vars), get<Tags::TildeS<>>(temp_vars),
-        get<Tags::TildeB<>>(temp_vars), get<Tags::TildePhi>(temp_vars),
-
-        get<Lapse>(temp_vars), get<Shift>(temp_vars),
-        get<SqrtDetSpatialMetric>(temp_vars), get<SpatialMetric>(temp_vars),
-        get<InvSpatialMetric>(temp_vars), get<Pressure>(temp_vars),
-        get<SpatialVelocity>(temp_vars), get<LorentzFactor>(temp_vars),
-        *magnetic_field);
+    compute_fluxes_from_primitives(
+        make_not_null(&cell_centered_ghost_fluxes->value()), temp_vars);
   }
+
+  *rest_mass_density = get<hydro::Tags::RestMassDensity<DataVector>>(temp_vars);
+  *electron_fraction =
+      get<hydro::Tags::ElectronFraction<DataVector>>(temp_vars);
+  *temperature = get<hydro::Tags::Temperature<DataVector>>(temp_vars);
+  *magnetic_field = get<hydro::Tags::MagneticField<DataVector, 3>>(temp_vars);
+  *divergence_cleaning_field =
+      get<hydro::Tags::DivergenceCleaningField<DataVector>>(temp_vars);
 }
 
 void HydroFreeOutflow::fd_ghost_impl(
@@ -386,31 +378,133 @@ void HydroFreeOutflow::fd_ghost_impl(
       get_boundary_val(interior_temperature);
 
   {
-    // Kill ingoing components of spatial velocity and compute Wv^i
+    // Outflow condition for spatial velocity:
+    // On curved meshes (such as cubed spheres at black hole horizons), the
+    // boundary normal is generally not aligned with Cartesian axes. For infalling
+    // gas (e.g. onto an excision surface), the fluid has strong orbital velocity
+    // (v_phi) along with radial infall.
     //
-    // Note : Here we require the grid to be Cartesian, therefore we will need
-    // to change the implementation below once subcell supports curved mesh.
-    const auto normal_spatial_velocity_at_boundary =
-        get_boundary_val(interior_spatial_velocity).get(dim_direction);
-    for (size_t i = 0; i < 3; ++i) {
-      if (i == dim_direction) {
-        if (direction.sign() > 0.0) {
-          get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(i) =
-              get(get_boundary_val(interior_lorentz_factor)) *
-              max(normal_spatial_velocity_at_boundary,
-                  normal_spatial_velocity_at_boundary * 0.0);
-        } else {
-          get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(i) =
-              get(get_boundary_val(interior_lorentz_factor)) *
-              min(normal_spatial_velocity_at_boundary,
-                  normal_spatial_velocity_at_boundary * 0.0);
-        }
-      } else {
-        get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(i) =
-            get(get_boundary_val(interior_lorentz_factor)) *
-            get_boundary_val(interior_spatial_velocity).get(i);
-      }
+    // 1. In pure Cartesian grids, normal velocity is simply given by dim_direction.
+    // 2. On curved boundaries, dim_direction along with direction.sign() specifies
+    //    the logical face direction. For an excision boundary (lower boundary in
+    //    logical radial direction, direction.sign() < 0), outflow from domain
+    //    into the excision sphere corresponds to radial infall (v_n pointing into the hole).
+    //
+    // To ensure infalling accretion flows cleanly pass through the excision boundary
+    // without artificial reflections into the domain:
+    // If the velocity along the normal direction points OUT of the domain
+    // (direction.sign() > 0 with v > 0, or direction.sign() < 0 with v < 0),
+    // all velocity components (radial + azimuthal) are preserved freely.
+    // Only if fluid is trying to enter the domain from outside do we kill the ingoing component.
+    const auto boundary_velocity = get_boundary_val(interior_spatial_velocity);
+    const auto boundary_lorentz = get(get_boundary_val(interior_lorentz_factor));
+    const auto boundary_shift = get_boundary_val(interior_shift);
+    const auto boundary_lapse = get(get_boundary_val(interior_lapse));
 
+    const size_t num_pts = boundary_lorentz.size();
+    DataVector shift_squared(num_pts, 0.0);
+    DataVector v_dot_shift(num_pts, 0.0);
+    for (size_t d = 0; d < 3; ++d) {
+      shift_squared += square(boundary_shift.get(d));
+      v_dot_shift += boundary_velocity.get(d) * boundary_shift.get(d);
+    }
+    const bool has_radial_shift = (max(shift_squared) > 1.0e-8);
+
+    // Coordinate transport velocity along radial direction:
+    // In Kerr-Schild, beta^i is radially outward (beta^r > 0).
+    // beta^r * (dr/dt) = beta^r * (alpha * v^r - beta^r) = alpha * (v . beta) - beta^2
+    DataVector v_coord_dot_shift(num_pts, 0.0);
+    if (has_radial_shift) {
+      v_coord_dot_shift = boundary_lapse * v_dot_shift - shift_squared;
+    }
+
+    if (direction.sign() < 0.0) {
+      // Inner excision boundary (absorbing sink inside black hole event horizon):
+      // In Kerr-Schild coordinates, shift beta^i is radially outward (beta^r > 0).
+      // The physical outward normal pointing OUT of the computational domain into
+      // the hole is n_i ~ -d_i r (opposite to beta^i).
+      // 1. Inflowing fluid into the hole (dr/dt <= 0, or v_coord_dot_shift <= 0):
+      //    All physical characteristics point out of the domain into the hole.
+      //    Even if Eulerian v^r > 0, as long as dr/dt <= 0, general relativity drags
+      //    the fluid inward. Copy freely into ghost cells!
+      // 2. Outward fluid (dr/dt > 0, trying to escape from singularity into domain):
+      //    This is strictly forbidden. Project out the outward radial velocity component
+      //    so ghost cells never pump matter into the domain.
+      for (size_t pt = 0; pt < num_pts; ++pt) {
+        bool is_outflow_into_hole = false;
+        if (has_radial_shift) {
+          is_outflow_into_hole = (v_coord_dot_shift[pt] <= 0.0);
+        } else {
+          // Flat grid fallback: lower boundary dim_direction with v <= 0 is outflow
+          const double v_norm = boundary_velocity.get(dim_direction)[pt];
+          is_outflow_into_hole = (v_norm <= 0.0);
+        }
+
+        if (is_outflow_into_hole) {
+          // Infalling into black hole: copy full 3-velocity into ghost cells freely
+          for (size_t d = 0; d < 3; ++d) {
+            get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                boundary_lorentz[pt] * boundary_velocity.get(d)[pt];
+          }
+        } else {
+          // Outward coordinate velocity attempting to enter domain from singularity:
+          // Kill the outward radial component, preserving only tangential velocity
+          for (size_t d = 0; d < 3; ++d) {
+            if (has_radial_shift && shift_squared[pt] > 1.0e-12) {
+              const double v_proj = v_dot_shift[pt] / shift_squared[pt];
+              const double v_tangential =
+                  boundary_velocity.get(d)[pt] - v_proj * boundary_shift.get(d)[pt];
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                  boundary_lorentz[pt] * v_tangential;
+            } else if (d == dim_direction) {
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] = 0.0;
+            } else {
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                  boundary_lorentz[pt] * boundary_velocity.get(d)[pt];
+            }
+          }
+        }
+      }
+    } else {
+      // Outer boundary (direction.sign() > 0):
+      // Prevent artificial matter from entering the computational domain from infinity.
+      for (size_t pt = 0; pt < num_pts; ++pt) {
+        bool is_outflow = false;
+        if (has_radial_shift) {
+          // At outer boundary, outflow into infinity means dr/dt >= 0
+          is_outflow = (v_coord_dot_shift[pt] >= 0.0);
+        } else {
+          // Fallback for flat Cartesian grid
+          const double v_norm = boundary_velocity.get(dim_direction)[pt];
+          is_outflow = (v_norm >= 0.0);
+        }
+
+        if (is_outflow) {
+          for (size_t d = 0; d < 3; ++d) {
+            get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                boundary_lorentz[pt] * boundary_velocity.get(d)[pt];
+          }
+        } else {
+          // Fluid is trying to coordinate-enter from infinity: remove incoming radial component
+          for (size_t d = 0; d < 3; ++d) {
+            if (has_radial_shift && shift_squared[pt] > 1.0e-12) {
+              const double v_proj = v_dot_shift[pt] / shift_squared[pt];
+              const double v_tangential =
+                  boundary_velocity.get(d)[pt] - v_proj * boundary_shift.get(d)[pt];
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                  boundary_lorentz[pt] * v_tangential;
+            } else if (d == dim_direction) {
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] = 0.0;
+            } else {
+              get<LorentzFactorTimesSpatialVelocity>(outermost_prim_vars).get(d)[pt] =
+                  boundary_lorentz[pt] * boundary_velocity.get(d)[pt];
+            }
+          }
+        }
+      }
+    }
+
+    for (size_t i = 0; i < 3; ++i) {
       get<MagneticField>(outermost_prim_vars).get(i) =
           get_boundary_val(interior_magnetic_field).get(i);
     }

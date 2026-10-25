@@ -1,8 +1,8 @@
 # Distributed under the MIT License.
 # See LICENSE.txt for details.
 
+import Evolution.Systems.GrMhd.ValenciaDivClean.ConservativeFromPrimitive as cons
 import Evolution.Systems.GrMhd.ValenciaDivClean.Fluxes as fluxes
-import Evolution.Systems.GrMhd.ValenciaDivClean.TestFunctions as cons
 import numpy as np
 
 
@@ -10,16 +10,22 @@ def _exterior_spatial_velocity(
     outward_directed_normal_covector,
     outward_directed_normal_vector,
     interior_spatial_velocity,
+    lapse,
+    shift,
 ):
     dot_interior_spatial_velocity = np.dot(
         outward_directed_normal_covector, interior_spatial_velocity
     )
+    dot_shift = np.dot(outward_directed_normal_covector, shift)
+    normal_transport_velocity = lapse * dot_interior_spatial_velocity - dot_shift
+    v_norm_correction = normal_transport_velocity / lapse
     return np.where(
-        dot_interior_spatial_velocity > 0.0,
+        normal_transport_velocity >= 0.0,
         interior_spatial_velocity,
         interior_spatial_velocity
-        - outward_directed_normal_vector * dot_interior_spatial_velocity,
+        - outward_directed_normal_vector * v_norm_correction,
     )
+
 
 
 def _spatial_metric(inv_spatial_metric):
@@ -65,6 +71,8 @@ def tilde_d(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -103,6 +111,8 @@ def tilde_ye(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -141,6 +151,8 @@ def tilde_tau(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -179,6 +191,8 @@ def tilde_s(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -217,6 +231,8 @@ def tilde_b(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -255,6 +271,8 @@ def tilde_phi(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -409,6 +427,8 @@ def flux_tilde_d(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -469,6 +489,8 @@ def flux_tilde_ye(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -529,6 +551,8 @@ def flux_tilde_tau(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -589,6 +613,8 @@ def flux_tilde_s(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -649,6 +675,8 @@ def flux_tilde_b(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -709,6 +737,8 @@ def flux_tilde_phi(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     sqrt_det_spatial_metric = np.sqrt(np.linalg.det(spatial_metric))
@@ -826,6 +856,8 @@ def spatial_velocity(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
 
 
@@ -849,6 +881,8 @@ def spatial_velocity_one_form(
         outward_directed_normal_covector,
         outward_directed_normal_vector,
         interior_spatial_velocity,
+        lapse,
+        shift,
     )
     spatial_metric = _spatial_metric(inv_spatial_metric)
     return np.einsum("i, ij", exterior_spatial_velocity, spatial_metric)

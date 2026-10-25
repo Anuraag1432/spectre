@@ -6,6 +6,9 @@
 #include <array>
 #include <cstddef>
 #include <unordered_set>
+#include <cmath>
+#include <iostream>
+#include <iomanip>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Index.hpp"
@@ -89,6 +92,17 @@ DirectionMap<Dim, DataVector> slice_data_impl(
         fd_to_neighbor_fd_interpolants) {
   const size_t num_pts = subcell_extents.product();
   const size_t number_of_components = volume_subcell_vars.size() / num_pts;
+  // std::cout << "\nBEFORE SLICING - Full Diagnostics:\n";
+  // std::cout << "Total points: " << num_pts << "\n";
+  // std::cout << "Number of components: " << number_of_components << "\n";
+  // std::cout << "Total size: " << volume_subcell_vars.size() << "\n";
+
+  // // Print first value of EACH component
+  // for (size_t comp = 0; comp < std::min(number_of_components, size_t(10)); ++comp) {
+  //     size_t offset = comp * num_pts;
+  //     std::cout << "Component " << comp << " first value: " 
+  //               << volume_subcell_vars[offset] << "\n";
+  // }
   std::array<size_t, Dim> result_grid_points{};
   for (size_t d = 0; d < Dim; ++d) {
     const size_t num_sliced_pts =
@@ -200,6 +214,35 @@ DirectionMap<Dim, DataVector> slice_data_impl(
       }
     }
   }
+  // for (const auto& [direction, data] : result) {
+  //     const size_t num_points_in_slice = gsl::at(result_grid_points, direction.dimension());
+    
+  //     // Component 0 is RestMassDensity
+  //     const size_t density_component_index = 0;
+  //     const size_t density_start_index = density_component_index * num_points_in_slice;
+  //     const size_t density_end_index = (density_component_index + 1) * num_points_in_slice;
+    
+  //     for (size_t i = density_start_index; i < density_end_index; ++i) {
+  //         double density_value = data[i];
+        
+  //         if (density_value < 0.0) {
+  //             const size_t point_index = i - density_start_index;
+            
+  //             std::cout << "\n!!! NEGATIVE DENSITY !!!\n";
+  //             std::cout << "Direction: " << direction << "\n";
+  //             std::cout << "Point Index: " << point_index << "\n";
+  //             std::cout << "Value: " << std::scientific << std::setprecision(15) << density_value << "\n";
+            
+  //             // Print first 5 and last 5 density values for comparison
+  //             if (point_index == 0) {
+  //                 std::cout << "\nFirst few density values in this slice:\n";
+  //                 for (size_t j = 0; j < std::min(size_t(5), num_points_in_slice); ++j) {
+  //                     std::cout << "  [" << j << "] = " << data[density_start_index + j] << "\n";
+  //                 }
+  //             }
+  //         }
+  //     }
+  // }
   return result;
 }
 

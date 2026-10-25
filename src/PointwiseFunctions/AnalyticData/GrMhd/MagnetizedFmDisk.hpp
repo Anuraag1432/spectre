@@ -134,8 +134,13 @@ class MagnetizedFmDisk : public virtual evolution::initial_data::InitialData,
                       hydro::Tags::LorentzFactor<DataType>,
                       hydro::Tags::SpecificEnthalpy<DataType>>;
 
-  using options = tmpl::push_back<FmDisk::options, ThresholdDensity,
-                                  InversePlasmaBeta, BFieldNormGridRes>;
+  using options =
+      tmpl::list<typename FmDisk::BhMass, typename FmDisk::BhDimlessSpin,
+                 typename FmDisk::InnerEdgeRadius,
+                 typename FmDisk::MaxPressureRadius,
+                 typename FmDisk::PolytropicConstant,
+                 typename FmDisk::PolytropicExponent, typename FmDisk::Noise,
+                 ThresholdDensity, InversePlasmaBeta, BFieldNormGridRes>;
 
   static constexpr Options::String help = {
       "Magnetized Fishbone-Moncrief disk."};

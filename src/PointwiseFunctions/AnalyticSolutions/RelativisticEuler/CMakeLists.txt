@@ -13,6 +13,7 @@ spectre_target_sources(
   SmoothFlow.cpp
   Tov.cpp
   TovStar.cpp
+  KerrAtmosphere.cpp
   )
 
 spectre_target_headers(
@@ -25,6 +26,7 @@ spectre_target_headers(
   Solutions.hpp
   Tov.hpp
   TovStar.hpp
+  KerrAtmosphere.hpp
   )
 
 target_link_libraries(

@@ -42,7 +42,8 @@ void FixConservativesAndComputePrims<OrderedListOfRecoverySchemes>::apply(
       get<Tags::TildeB<Frame::Inertial>>(*conserved_vars_ptr), spatial_metric,
       inv_spatial_metric, sqrt_det_spatial_metric);
   grmhd::ValenciaDivClean::
-      PrimitiveFromConservative<OrderedListOfRecoverySchemes, true>::apply(
+      PrimitiveFromConservative<OrderedListOfRecoverySchemes, true>::apply( //default
+    //   PrimitiveFromConservative<OrderedListOfRecoverySchemes, false>::apply(
           make_not_null(&get<hydro::Tags::RestMassDensity<DataVector>>(
               *primitive_vars_ptr)),
           make_not_null(&get<hydro::Tags::ElectronFraction<DataVector>>(

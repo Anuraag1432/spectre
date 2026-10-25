@@ -81,6 +81,7 @@
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Tags.hpp"
 #include "Evolution/VariableFixing/Actions.hpp"
 #include "Evolution/VariableFixing/FixToAtmosphere.hpp"
+#include "Evolution/VariableFixing/RadiallyFallingFloor.hpp"
 #include "Evolution/VariableFixing/ParameterizedDeleptonization.hpp"
 #include "Evolution/VariableFixing/Tags.hpp"
 #include "IO/Observer/Actions/RegisterEvents.hpp"
@@ -434,6 +435,8 @@ struct EvolutionMetavars<tmpl::list<InterpolationTargetTags...>,
       parameterized_deleptonization,
       VariableFixing::Actions::FixVariables<
           VariableFixing::FixToAtmosphere<volume_dim>>,
+      VariableFixing::Actions::FixVariables<
+          VariableFixing::RadiallyFallingFloor<volume_dim>>,
       Actions::UpdateConservatives>>;
 
   using dg_subcell_step_actions = tmpl::flatten<tmpl::list<
@@ -461,6 +464,8 @@ struct EvolutionMetavars<tmpl::list<InterpolationTargetTags...>,
       parameterized_deleptonization,
       VariableFixing::Actions::FixVariables<
           VariableFixing::FixToAtmosphere<volume_dim>>,
+      VariableFixing::Actions::FixVariables<
+          VariableFixing::RadiallyFallingFloor<volume_dim>>,
       Actions::UpdateConservatives,
       Actions::Goto<evolution::dg::subcell::Actions::Labels::EndOfSolvers>,
 
@@ -504,6 +509,8 @@ struct EvolutionMetavars<tmpl::list<InterpolationTargetTags...>,
       parameterized_deleptonization,
       VariableFixing::Actions::FixVariables<
           VariableFixing::FixToAtmosphere<volume_dim>>,
+      VariableFixing::Actions::FixVariables<
+          VariableFixing::RadiallyFallingFloor<volume_dim>>,
       Actions::UpdateConservatives,
 
       Actions::Label<evolution::dg::subcell::Actions::Labels::EndOfSolvers>>>;
@@ -541,6 +548,8 @@ struct EvolutionMetavars<tmpl::list<InterpolationTargetTags...>,
               parameterized_deleptonization,
               VariableFixing::Actions::FixVariables<
                   VariableFixing::FixToAtmosphere<volume_dim>>,
+              VariableFixing::Actions::FixVariables<
+                  VariableFixing::RadiallyFallingFloor<volume_dim>>,
               Actions::UpdateConservatives,
               evolution::dg::subcell::Actions::SetAndCommunicateInitialRdmpData<
                   volume_dim,
@@ -558,12 +567,16 @@ struct EvolutionMetavars<tmpl::list<InterpolationTargetTags...>,
               parameterized_deleptonization,
               VariableFixing::Actions::FixVariables<
                   VariableFixing::FixToAtmosphere<volume_dim>>,
+              VariableFixing::Actions::FixVariables<
+                  VariableFixing::RadiallyFallingFloor<volume_dim>>,
               Actions::UpdateConservatives>,
           tmpl::list<evolution::Initialization::Actions::SetVariables<
                          domain::Tags::Coordinates<3, Frame::ElementLogical>>,
                      parameterized_deleptonization,
                      VariableFixing::Actions::FixVariables<
                          VariableFixing::FixToAtmosphere<volume_dim>>,
+                     VariableFixing::Actions::FixVariables<
+                         VariableFixing::RadiallyFallingFloor<volume_dim>>,
                      Actions::UpdateConservatives>>,
 
       Initialization::Actions::AddComputeTags<

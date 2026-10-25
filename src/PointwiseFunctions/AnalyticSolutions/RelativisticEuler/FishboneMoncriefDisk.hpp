@@ -6,6 +6,7 @@
 #include <cstddef>
 #include <limits>
 
+#include "Utilities/TaggedTuple.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Options/String.hpp"
 #include "PointwiseFunctions/AnalyticSolutions/AnalyticSolution.hpp"
@@ -20,7 +21,6 @@
 #include "Utilities/Requires.hpp"
 #include "Utilities/Serialization/CharmPupable.hpp"
 #include "Utilities/TMPL.hpp"
-#include "Utilities/TaggedTuple.hpp"
 
 /// \cond
 namespace PUP {
@@ -226,10 +226,19 @@ class FishboneMoncriefDisk
     static type lower_bound() { return 0.; }
     static type upper_bound() { return 1.; }
   };
+  /// The rest mass density of the background outside the disk.
+  struct BackgroundDensity {
+    using type = double;
+    static constexpr Options::String help = {
+        "The background rest mass density outside of the disk."};
+    static type lower_bound() { return 0.; }
+    static type suggested_value() { return 1.e-7; }
+  };
 
   using options =
       tmpl::list<BhMass, BhDimlessSpin, InnerEdgeRadius, MaxPressureRadius,
-                 PolytropicConstant, PolytropicExponent, Noise>;
+                 PolytropicConstant, PolytropicExponent, Noise,
+                 BackgroundDensity>;
   static constexpr Options::String help = {
       "Fluid disk orbiting a Kerr black hole."};
 
@@ -244,7 +253,7 @@ class FishboneMoncriefDisk
   FishboneMoncriefDisk(double bh_mass, double bh_dimless_spin,
                        double inner_edge_radius, double max_pressure_radius,
                        double polytropic_constant, double polytropic_exponent,
-                       double noise);
+                       double noise, double background_density = 1.e-7);
 
   auto get_clone() const
       -> std::unique_ptr<evolution::initial_data::InitialData> override;
@@ -259,6 +268,8 @@ class FishboneMoncriefDisk
   // black hole, the following two functions aren't needed, and the algebra
   // of the three functions after can be simplified by using the corresponding
   // lapse, shift, and spatial metric.
+  double background_density() const { return background_density_; }
+
   template <typename DataType>
   DataType sigma(const DataType& r_sqrd, const DataType& sin_theta_sqrd) const;
 
@@ -441,7 +452,7 @@ class FishboneMoncriefDisk
   // Thus, we instead initialize the background values that most closely
   // matches the radial profiles of EHT Code Comparison Project initial data
   // without introducing any weird kinks.
-  double background_density_ = 1.e-7;
+  double background_density_ = std::numeric_limits<double>::signaling_NaN();
   double background_temperature_ = 2.e-5;
   double background_pressure_ = std::numeric_limits<double>::signaling_NaN();
   double background_specific_internal_energy_ =

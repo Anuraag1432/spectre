@@ -50,6 +50,23 @@ void enable_floating_point_exceptions() {
   sigaction(SIGFPE, &handler, nullptr);
 }
 
+// void enable_floating_point_exceptions() {
+//   // TEMPORARILY DISABLED FOR INITIAL-DATA DIAGNOSTICS
+//   return;
+
+// #if SPECTRE_FPE_CSR
+//   _mm_setcsr(exception_flags);
+// #elif SPECTRE_FPE_FENV
+//   feenableexcept(exception_flags);
+// #endif
+
+//   struct sigaction handler {};
+//   handler.sa_handler = fpe_signal_handler;
+//   handler.sa_flags = SA_NODEFER;
+//   sigemptyset(&handler.sa_mask);
+//   sigaction(SIGFPE, &handler, nullptr);
+// }
+
 void disable_floating_point_exceptions() {
 #if SPECTRE_FPE_CSR
   _mm_setcsr(disabled_mask);

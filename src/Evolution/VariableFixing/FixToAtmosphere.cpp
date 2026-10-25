@@ -8,6 +8,8 @@
 #include <ostream>
 #include <pup.h>
 #include <string>
+#include <iostream>
+#include <iomanip>
 
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
@@ -166,6 +168,19 @@ void FixToAtmosphere<Dim>::operator()(
     const tnsr::ii<DataVector, Dim, Frame::Inertial>& spatial_metric,
     const EquationsOfState::EquationOfState<true, ThermodynamicDim>&
         equation_of_state) const {
+
+  // const DataVector& rho = get(*rest_mass_density);
+  // for (size_t i = 0; i < rho.size(); ++i) {
+  //     if (rho[i] < 0.0) {
+  //         std::cout << "\n!!! ORIGIN FOUND: FixToAtmosphere CAUGHT NEGATIVE INPUT !!!\n";
+  //         std::cout << "I am the Sender (Local Element).\n";
+  //         std::cout << "Index: " << i << "\n";
+  //         std::cout << "Value: " << std::scientific << std::setprecision(15) << rho[i] << "\n";
+  //         std::cout << "I am about to fix this value locally, but it might have already been sent to a neighbor!\n";
+  //         std::cout << "-------------------------------------------------------------\n";
+  //     }
+  // }
+
   for (size_t i = 0; i < rest_mass_density->get().size(); i++) {
     if (UNLIKELY(rest_mass_density->get()[i] < density_cutoff_)) {
       set_density_to_atmosphere(rest_mass_density, specific_internal_energy,

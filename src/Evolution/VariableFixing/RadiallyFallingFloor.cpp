@@ -11,6 +11,7 @@
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Tensor/TypeAliases.hpp"
 #include "Utilities/GenerateInstantiations.hpp"
+#include "Utilities/ErrorHandling/Error.hpp"
 
 namespace VariableFixing {
 
@@ -46,10 +47,33 @@ void RadiallyFallingFloor<Dim>::operator()(
     const tnsr::I<DataVector, Dim, Frame::Inertial>& coords,
     const EquationsOfState::EquationOfState<true, ThermodynamicDim>&
         equation_of_state) const {
-  const auto radii = magnitude(coords);
 
-  for (size_t i = 0; i < density->get().size(); i++) {
-    const double& radius = radii.get()[i];
+  const size_t num_points = density->get().size();
+  const size_t num_coords = coords.get(0).size();
+
+  // Safety checks to ignore empty grids
+  if (num_points == 0 || num_coords == 0) {
+    return;
+  }
+
+  const auto dg_radii = magnitude(coords);
+
+  // If sizes mismatch, we are on the Subcell grid. 
+  // We compute the average radius of the element using the DG coordinates.
+  const bool use_avg_radius = (num_points != num_coords);
+  double avg_radius = 0.0;
+  
+  if (use_avg_radius) {
+    for (size_t j = 0; j < num_coords; j++) {
+      avg_radius += dg_radii.get()[j];
+    }
+    avg_radius /= num_coords;
+  }
+
+  for (size_t i = 0; i < num_points; i++) {
+    // Apply exact radius for DG, or the element-averaged radius for Subcell
+    const double radius = use_avg_radius ? avg_radius : dg_radii.get()[i];
+
     if (UNLIKELY(radius < minimum_radius_at_which_to_apply_floor_)) {
       continue;
     }
@@ -59,9 +83,6 @@ void RadiallyFallingFloor<Dim>::operator()(
           density->get()[i],
           rest_mass_density_scale_ * pow(radius, rest_mass_density_power_));
 
-      // For the 1D EoS, density will be used to calculate the remaining
-      // primitives, even overwriting pressure.  This decision prioritizes
-      // thermodynamic consistency over the user defined pressure profile.
       pressure->get()[i] = get(equation_of_state.pressure_from_density(
           Scalar<double>{density->get()[i]}));
 
@@ -69,8 +90,10 @@ void RadiallyFallingFloor<Dim>::operator()(
           get(equation_of_state.specific_internal_energy_from_density(
               Scalar<double>{density->get()[i]}));
 
-      temperature->get()[i] = get(equation_of_state.temperature_from_density(
-          Scalar<double>{density->get()[i]}));
+      if (temperature->get().size() == num_points) {
+        temperature->get()[i] = get(equation_of_state.temperature_from_density(
+            Scalar<double>{density->get()[i]}));
+      }
     } else if constexpr (ThermodynamicDim == 2) {
       density->get()[i] = std::max(
           density->get()[i],
@@ -84,10 +107,12 @@ void RadiallyFallingFloor<Dim>::operator()(
               Scalar<double>{density->get()[i]},
               Scalar<double>{pressure->get()[i]}));
 
-      temperature->get()[i] =
-          get(equation_of_state.temperature_from_density_and_energy(
-              Scalar<double>{density->get()[i]},
-              Scalar<double>{specific_internal_energy->get()[i]}));
+      if (temperature->get().size() == num_points) {
+        temperature->get()[i] =
+            get(equation_of_state.temperature_from_density_and_energy(
+                Scalar<double>{density->get()[i]},
+                Scalar<double>{specific_internal_energy->get()[i]}));
+      }
 
     } else if constexpr (ThermodynamicDim == 3) {
       density->get()[i] = std::max(

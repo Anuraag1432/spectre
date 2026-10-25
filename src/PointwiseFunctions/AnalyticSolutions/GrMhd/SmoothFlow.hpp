@@ -86,6 +86,18 @@ class SmoothFlow : virtual public MarkAsAnalyticSolution,
       -> tuples::TaggedTuple<hydro::Tags::DivergenceCleaningField<DataType>>;
   /// @}
 
+  template <typename DataType>
+  auto variables(
+    const tnsr::I<DataType, 3>& x, double /*t*/,
+    tmpl::list<hydro::Tags::RestMassDensity<DataType>> /*meta*/) const
+    -> tuples::TaggedTuple<hydro::Tags::RestMassDensity<DataType>>;
+
+  template <typename DataType>
+  auto variables(
+    const tnsr::I<DataType, 3>& x, double /*t*/,
+    tmpl::list<hydro::Tags::SpecificInternalEnergy<DataType>> /*meta*/) const
+    -> tuples::TaggedTuple<hydro::Tags::SpecificInternalEnergy<DataType>>;
+
   /// Retrieve a collection of hydro variables at `(x, t)`
   template <typename DataType, typename... Tags>
   tuples::TaggedTuple<Tags...> variables(const tnsr::I<DataType, 3>& x,

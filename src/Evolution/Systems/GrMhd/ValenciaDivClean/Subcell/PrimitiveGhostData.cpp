@@ -4,7 +4,8 @@
 #include "Evolution/Systems/GrMhd/ValenciaDivClean/Subcell/PrimitiveGhostData.hpp"
 
 #include <cstddef>
-
+#include <iostream>
+#include <iomanip>
 #include "DataStructures/DataVector.hpp"
 #include "DataStructures/Tensor/Tensor.hpp"
 #include "DataStructures/Variables.hpp"
@@ -14,6 +15,10 @@ namespace grmhd::ValenciaDivClean::subcell {
 DataVector PrimitiveGhostVariables::apply(
     const Variables<hydro::grmhd_tags<DataVector>>& prims,
     const size_t rdmp_size) {
+//   std::cout << "PrimitiveGhostVariables::apply called\n";
+//   std::cout << "First density value: " << std::scientific 
+//             << get<hydro::Tags::RestMassDensity<DataVector>>(prims)[0] << "\n";
+//   std::cout << "Number of points: " << prims.number_of_grid_points() << "\n";
   DataVector buffer{
       prims.number_of_grid_points() *
           Variables<

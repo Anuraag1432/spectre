@@ -33,7 +33,8 @@ FishboneMoncriefDisk::FishboneMoncriefDisk(const double bh_mass,
                                            const double max_pressure_radius,
                                            const double polytropic_constant,
                                            const double polytropic_exponent,
-                                           const double noise)
+                                           const double noise,
+                                           const double background_density)
     : bh_mass_(bh_mass),
       bh_spin_a_(bh_mass * bh_dimless_spin),
       inner_edge_radius_(bh_mass * inner_edge_radius),
@@ -44,6 +45,7 @@ FishboneMoncriefDisk::FishboneMoncriefDisk(const double bh_mass,
       equation_of_state_{polytropic_constant_, polytropic_exponent_},
       background_spacetime_{
           bh_mass_, {{0.0, 0.0, bh_dimless_spin}}, {{0.0, 0.0, 0.0}}},
+      background_density_(background_density),
       background_pressure_(background_density_ * background_temperature_),
       background_specific_internal_energy_(background_temperature_ /
                                            (polytropic_exponent_ - 1.)) {
@@ -395,7 +397,8 @@ bool operator==(const FishboneMoncriefDisk& lhs,
          lhs.max_pressure_radius_ == rhs.max_pressure_radius_ and
          lhs.polytropic_constant_ == rhs.polytropic_constant_ and
          lhs.polytropic_exponent_ == rhs.polytropic_exponent_ and
-         lhs.noise_ == rhs.noise_ and lhs.rho_max_ == rhs.rho_max_;
+         lhs.noise_ == rhs.noise_ and lhs.rho_max_ == rhs.rho_max_ and
+         lhs.background_density_ == rhs.background_density_;
 }
 
 bool operator!=(const FishboneMoncriefDisk& lhs,

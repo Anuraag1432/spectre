@@ -160,6 +160,11 @@ bool PrimitiveFromConservative<OrderedListOfPrimitiveRecoverySchemes,
 
   DataVector& tau = get(get<::Tags::TempScalar<0>>(temp_buffer));
   tau = get(tilde_tau) / get(sqrt_det_spatial_metric);
+  if constexpr (EnforcePhysicality) {
+    for (size_t s = 0; s < number_of_points; ++s) {
+      tau[s] = std::max(tau[s], 0.0);
+    }
+  }
 
   tnsr::I<DataVector, 3, Frame::Inertial>& tilde_s_upper =
       get<::Tags::TempI<5, 3, Frame::Inertial>>(temp_buffer);
@@ -244,8 +249,9 @@ bool PrimitiveFromConservative<OrderedListOfPrimitiveRecoverySchemes,
       };
       // Check consistency
       if (use_hydro_optimization and
-          (get(magnetic_field_squared)[s] <
-           100.0 * std::numeric_limits<double>::epsilon() * tau[s])) {
+          (get(magnetic_field_squared)[s] == 0.0 or
+           get(magnetic_field_squared)[s] <=
+               100.0 * std::numeric_limits<double>::epsilon() * tau[s])) {
         tmpl::for_each<
             tmpl::list<grmhd::ValenciaDivClean::PrimitiveRecoverySchemes::
                            KastaunEtAlHydro>>(apply_scheme);
